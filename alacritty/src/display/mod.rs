@@ -731,6 +731,9 @@ impl Display {
         search_state: &mut SearchState,
     ) {
         // Collect renderable content before the terminal is dropped.
+
+        // I dont think this is working
+        let last_point = &terminal.get_last_cursor_pos();
         let mut content = RenderableContent::new(config, self, &terminal, search_state);
         let mut grid_cells = Vec::new();
         for cell in &mut content {
@@ -767,6 +770,7 @@ impl Display {
         drop(terminal);
 
         // Add damage from alacritty's UI elements overlapping terminal.
+
         if self.collect_damage() {
             let requires_full_damage = self.visual_bell.intensity() != 0.
                 || self.hint_state.active()
@@ -855,20 +859,19 @@ impl Display {
 
         // Draw cursor.
         let block_rep_shape = config.cursor.block_replace_shape().map(|x| x.shape);
-        let new_cur_rects =
-            cursor.rects(&size_info, config.cursor.thickness(), block_rep_shape);
-        if config.cursor.smooth_motion {
+        let new_cur_rects = cursor.rects(&size_info, config.cursor.thickness(), block_rep_shape);
+
+        //cursor_point
+        if last_point.to_owned() != cursor_point && config.cursor.smooth_motion {
             match self.cursor_rects {
-                None =>
-                    self.cursor_rects = Some(new_cur_rects),
-                Some(ref mut crcts) =>
-                    crcts.interpolate(
-                        &new_cur_rects,
-                        config.cursor.smooth_motion_factor,
-                        config.cursor.smooth_motion_spring,
-                        config.cursor.smooth_motion_max_stretch_x,
-                        config.cursor.smooth_motion_max_stretch_y
-                    ),
+                None => self.cursor_rects = Some(new_cur_rects),
+                Some(ref mut crcts) => crcts.interpolate(
+                    &new_cur_rects,
+                    config.cursor.smooth_motion_factor,
+                    config.cursor.smooth_motion_spring,
+                    config.cursor.smooth_motion_max_stretch_x,
+                    config.cursor.smooth_motion_max_stretch_y,
+                ),
             };
         } else {
             self.cursor_rects = Some(new_cur_rects);
@@ -911,7 +914,11 @@ impl Display {
                     let fg = config.colors.footer_bar_foreground();
                     let shape = CursorShape::Underline;
                     let cursor = RenderableCursor::new(Point::new(line, column), shape, fg, false);
-                    rects.extend(cursor.rects(&size_info, config.cursor.thickness(), block_rep_shape));
+                    rects.extend(cursor.rects(
+                        &size_info,
+                        config.cursor.thickness(),
+                        block_rep_shape,
+                    ));
                 }
 
                 Some(Point::new(line, column))
