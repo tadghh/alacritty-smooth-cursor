@@ -864,14 +864,22 @@ impl Display {
         //cursor_point
         if config.cursor.smooth_motion {
             match self.cursor_rects {
-                None => self.cursor_rects = Some(new_cur_rects),
-                Some(ref mut crcts) => crcts.interpolate(
-                    &new_cur_rects,
-                    config.cursor.smooth_motion_factor,
-                    config.cursor.smooth_motion_spring,
-                    config.cursor.smooth_motion_max_stretch_x,
-                    config.cursor.smooth_motion_max_stretch_y,
-                ),
+                None => {
+                    self.cursor_rects = {
+                        println!("not inter[");
+                        Some(new_cur_rects)
+                    }
+                },
+                Some(ref mut crcts) => {
+                    println!("not inter[");
+                    crcts.interpolate(
+                        &new_cur_rects,
+                        config.cursor.smooth_motion_factor,
+                        config.cursor.smooth_motion_spring,
+                        config.cursor.smooth_motion_max_stretch_x,
+                        config.cursor.smooth_motion_max_stretch_y,
+                    )
+                },
             };
         } else {
             self.cursor_rects = Some(new_cur_rects);

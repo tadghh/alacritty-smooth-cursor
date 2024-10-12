@@ -1713,12 +1713,14 @@ impl Processor {
                     if last_cur != new_cur {
                         // Fig:2
                         window_context.set_moving(true);
-                        window_context.set_burnoff(2100);
+                        window_context.set_burnoff(212000);
                         println!("Points are diff {:?} {:?}", last_cur, new_cur);
                     } else if window_context.is_burnt() {
-                        // Fig 1
-                        println!("Burnt");
-                        window_context.decrease_burnoff(-2100);
+                        if last_cur != new_cur {
+                            window_context.set_burnoff(212000);
+
+                            window_context.set_moving(true);
+                        }
                     } else {
                         window_context.set_moving(false);
                     }

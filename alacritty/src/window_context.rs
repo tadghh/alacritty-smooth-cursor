@@ -262,7 +262,7 @@ impl WindowContext {
             touch: Default::default(),
             dirty: Default::default(),
             moving: false,
-            burnoff: 39000,
+            burnoff: 212000,
         })
     }
     pub fn is_moving(&self) -> bool {
@@ -433,15 +433,21 @@ impl WindowContext {
             return;
         }
 
-        if !self.is_burnt() && !self.is_moving() {
+        if !self.is_burnt() && self.is_moving() {
             self.dirty = true;
         } else if !self.is_burnt() {
             self.dirty = true;
-            println!("Decreasing {:?}", self.get_burnoff());
+
             self.decrease_burnoff(2000);
+            println!("Decreasing {:?}", self.get_burnoff());
+        } else if self.is_moving() && self.is_burnt() {
+            self.dirty = true;
+            self.decrease_burnoff(2000);
+            println!("Decreasing {:?}", self.get_burnoff());
+            println!("temp");
         } else {
             self.dirty = false;
-            println!("temp");
+            self.set_burnoff(212000);
         }
 
         // Force the display to process any pending display update.
