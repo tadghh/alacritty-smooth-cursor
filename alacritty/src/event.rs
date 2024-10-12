@@ -1687,11 +1687,11 @@ impl Processor {
                     }
                 },
                 WinitEvent::WindowEvent { window_id, event: WindowEvent::RedrawRequested } => {
-                    //let cloned_windows = self.windows.clone(); // Clone the entire `windows` HashMap
                     let window_context = match self.windows.get_mut(&window_id) {
                         Some(window_context) => window_context,
                         None => return,
                     };
+
                     let last_cur = window_context.fake_draw();
 
                     window_context.handle_event(
@@ -1703,15 +1703,22 @@ impl Processor {
                         event,
                     );
 
-                    //  let cloned_win: &WindowContext = &window_context.borrow();
-                    //let terminal = other_context.get_terminal();
-                    //println!("Draw 111.");
-                    // let poo = window_context.draw2();
                     window_context.draw3(&mut scheduler);
                     let new_cur = window_context.fake_draw();
+                    // More notes in alacritty\src\window_context.rs line 421
+                    // need dirty to run correctly to get the synced diff cursor
+                    // Need gas for animation when cursor is moving but user hasnt moved
+                    // Need gas on user return and cursor hasnt moved
+
                     if last_cur != new_cur {
+                        // Fig:2
                         window_context.set_moving(true);
+                        window_context.set_burnoff(2100);
                         println!("Points are diff {:?} {:?}", last_cur, new_cur);
+                    } else if window_context.is_burnt() {
+                        // Fig 1
+                        println!("Burnt");
+                        window_context.decrease_burnoff(-2100);
                     } else {
                         window_context.set_moving(false);
                     }

@@ -66,6 +66,7 @@ pub struct WindowContext {
     window_config: ParsedOptions,
     config: Rc<UiConfig>,
     moving: bool,
+    burnoff: i32,
 }
 
 impl WindowContext {
@@ -261,6 +262,7 @@ impl WindowContext {
             touch: Default::default(),
             dirty: Default::default(),
             moving: false,
+            burnoff: 39000,
         })
     }
     pub fn is_moving(&self) -> bool {
@@ -268,6 +270,18 @@ impl WindowContext {
     }
     pub fn set_moving(&mut self, state: bool) {
         self.moving = state
+    }
+    pub fn is_burnt(&self) -> bool {
+        self.burnoff <= 0
+    }
+    pub fn set_burnoff(&mut self, duration: i32) {
+        self.burnoff = duration
+    }
+    pub fn get_burnoff(&self) -> i32 {
+        self.burnoff
+    }
+    pub fn decrease_burnoff(&mut self, duration: i32) {
+        self.burnoff -= duration
     }
     /// Update the terminal window to the latest config.
     pub fn update_config(&mut self, new_config: Rc<UiConfig>) {
@@ -375,10 +389,9 @@ impl WindowContext {
         if self.occluded {
             return;
         }
-        let last_cur = self.terminal.lock().grid().cursor.point;
-        // if !self.config.cursor.smooth_motion {
-        //     self.dirty = false;
-        // }
+        if !self.config.cursor.smooth_motion {
+            self.dirty = false;
+        }
 
         // Force the display to process any pending display update.
         self.display.process_renderer_update();
@@ -402,24 +415,35 @@ impl WindowContext {
             &self.message_buffer,
             &self.config,
             &mut self.search_state,
-            true,
         );
     }
     pub fn draw3(&mut self, scheduler: &mut Scheduler) {
+        // More notes in alacritty\src\event.rs line 1708
+        // This class starts with a burn buffer for the startup cursor animation
+        // We decrease burn while idle
+
+        // But we also need to add more 'gas'(burn) on user input as the cursor jumps to col 0. This is so the off idle animation completes Fig:1
+        // Stuck here: how can we know
+
+        // We also dont get access to intermediary frames so sometimes we dont know if the cursor has moved Fig:2
+
         self.display.window.requested_redraw = false;
 
         if self.occluded {
             return;
         }
-        //let last_cur = self.terminal.lock().grid().cursor.point;
-        if !self.config.cursor.smooth_motion {
+
+        if !self.is_burnt() && !self.is_moving() {
+            self.dirty = true;
+        } else if !self.is_burnt() {
+            self.dirty = true;
+            println!("Decreasing {:?}", self.get_burnoff());
+            self.decrease_burnoff(2000);
+        } else {
             self.dirty = false;
+            println!("temp");
         }
-        let current_moving_state = self.is_moving();
-        if self.is_moving() == true {
-            // window_context.set_moving(true);
-            println!("Throw that ass back");
-        }
+
         // Force the display to process any pending display update.
         self.display.process_renderer_update();
 
@@ -442,7 +466,6 @@ impl WindowContext {
             &self.message_buffer,
             &self.config,
             &mut self.search_state,
-            current_moving_state,
         );
     }
     pub fn fake_draw(&mut self) -> Point {
