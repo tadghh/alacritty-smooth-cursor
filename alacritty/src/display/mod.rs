@@ -729,12 +729,14 @@ impl Display {
         message_buffer: &MessageBuffer,
         config: &UiConfig,
         search_state: &mut SearchState,
+        moving: bool,
     ) {
         // Collect renderable content before the terminal is dropped.
+        //let last_point = terminal.grid().cursor.point;
 
         // I dont think this is working
-        let last_point = &terminal.get_last_cursor_pos();
         let mut content = RenderableContent::new(config, self, &terminal, search_state);
+
         let mut grid_cells = Vec::new();
         for cell in &mut content {
             grid_cells.push(cell);
@@ -746,6 +748,10 @@ impl Display {
         let cursor = content.cursor();
 
         let cursor_point = terminal.grid().cursor.point;
+        if moving {
+            println!("grooving in draw");
+        }
+
         let total_lines = terminal.grid().total_lines();
         let metrics = self.glyph_cache.font_metrics();
         let size_info = self.size_info;
@@ -862,7 +868,7 @@ impl Display {
         let new_cur_rects = cursor.rects(&size_info, config.cursor.thickness(), block_rep_shape);
 
         //cursor_point
-        if last_point.to_owned() != cursor_point && config.cursor.smooth_motion {
+        if moving {
             match self.cursor_rects {
                 None => self.cursor_rects = Some(new_cur_rects),
                 Some(ref mut crcts) => crcts.interpolate(

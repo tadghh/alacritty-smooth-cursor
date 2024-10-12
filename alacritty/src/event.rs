@@ -52,7 +52,7 @@ use crate::input::{self, ActionContext as _, FONT_SIZE_STEP};
 use crate::logging::LOG_TARGET_CONFIG;
 use crate::message_bar::{Message, MessageBuffer};
 use crate::scheduler::{Scheduler, TimerId, Topic};
-use crate::window_context::WindowContext;
+use crate::window_context::{self, WindowContext};
 
 /// Duration after the last user input until an unlimited search is performed.
 pub const TYPING_SEARCH_DELAY: Duration = Duration::from_millis(500);
@@ -1687,10 +1687,12 @@ impl Processor {
                     }
                 },
                 WinitEvent::WindowEvent { window_id, event: WindowEvent::RedrawRequested } => {
+                    //let cloned_windows = self.windows.clone(); // Clone the entire `windows` HashMap
                     let window_context = match self.windows.get_mut(&window_id) {
                         Some(window_context) => window_context,
                         None => return,
                     };
+                    let last_cur = window_context.fake_draw();
 
                     window_context.handle_event(
                         #[cfg(target_os = "macos")]
@@ -1701,7 +1703,18 @@ impl Processor {
                         event,
                     );
 
-                    window_context.draw(&mut scheduler);
+                    //  let cloned_win: &WindowContext = &window_context.borrow();
+                    //let terminal = other_context.get_terminal();
+                    //println!("Draw 111.");
+                    // let poo = window_context.draw2();
+                    window_context.draw3(&mut scheduler);
+                    let new_cur = window_context.fake_draw();
+                    if last_cur != new_cur {
+                        window_context.set_moving(true);
+                        println!("Points are diff {:?} {:?}", last_cur, new_cur);
+                    } else {
+                        window_context.set_moving(false);
+                    }
                 },
                 // Process all pending events.
                 WinitEvent::AboutToWait => {

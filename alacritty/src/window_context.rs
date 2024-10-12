@@ -23,7 +23,7 @@ use winit::window::WindowId;
 use alacritty_terminal::event::Event as TerminalEvent;
 use alacritty_terminal::event_loop::{EventLoop as PtyEventLoop, Msg, Notifier};
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::index::Direction;
+use alacritty_terminal::index::{Direction, Point};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::test::TermSize;
 use alacritty_terminal::term::{Term, TermMode};
@@ -65,6 +65,7 @@ pub struct WindowContext {
     shell_pid: u32,
     window_config: ParsedOptions,
     config: Rc<UiConfig>,
+    moving: bool,
 }
 
 impl WindowContext {
@@ -259,9 +260,15 @@ impl WindowContext {
             mouse: Default::default(),
             touch: Default::default(),
             dirty: Default::default(),
+            moving: false,
         })
     }
-
+    pub fn is_moving(&self) -> bool {
+        self.moving
+    }
+    pub fn set_moving(&mut self, state: bool) {
+        self.moving = state
+    }
     /// Update the terminal window to the latest config.
     pub fn update_config(&mut self, new_config: Rc<UiConfig>) {
         let old_config = mem::replace(&mut self.config, new_config);
@@ -368,8 +375,10 @@ impl WindowContext {
         if self.occluded {
             return;
         }
-
-        if !self.config.cursor.smooth_motion { self.dirty = false; }
+        let last_cur = self.terminal.lock().grid().cursor.point;
+        // if !self.config.cursor.smooth_motion {
+        //     self.dirty = false;
+        // }
 
         // Force the display to process any pending display update.
         self.display.process_renderer_update();
@@ -393,7 +402,58 @@ impl WindowContext {
             &self.message_buffer,
             &self.config,
             &mut self.search_state,
+            true,
         );
+    }
+    pub fn draw3(&mut self, scheduler: &mut Scheduler) {
+        self.display.window.requested_redraw = false;
+
+        if self.occluded {
+            return;
+        }
+        //let last_cur = self.terminal.lock().grid().cursor.point;
+        if !self.config.cursor.smooth_motion {
+            self.dirty = false;
+        }
+        let current_moving_state = self.is_moving();
+        if self.is_moving() == true {
+            // window_context.set_moving(true);
+            println!("Throw that ass back");
+        }
+        // Force the display to process any pending display update.
+        self.display.process_renderer_update();
+
+        // Request immediate re-draw if visual bell animation is not finished yet.
+        if !self.display.visual_bell.completed() {
+            // We can get an OS redraw which bypasses alacritty's frame throttling, thus
+            // marking the window as dirty when we don't have frame yet.
+            if self.display.window.has_frame {
+                self.display.window.request_redraw();
+            } else {
+                self.dirty = true;
+            }
+        }
+
+        // Redraw the window.
+        let terminal = self.terminal.lock();
+        self.display.draw(
+            terminal,
+            scheduler,
+            &self.message_buffer,
+            &self.config,
+            &mut self.search_state,
+            current_moving_state,
+        );
+    }
+    pub fn fake_draw(&mut self) -> Point {
+        self.display.window.requested_redraw = false;
+
+        // let last_cur = self.terminal.lock().grid().cursor.point;
+        // if self.config.cursor.smooth_motion {
+        //     self.dirty = false;
+        // }
+
+        self.terminal.lock().grid().cursor.point
     }
 
     /// Process events for this terminal window.
